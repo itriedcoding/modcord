@@ -6,6 +6,9 @@
     <files-path
         name="patched_internal"
         path="patched/" />
+    <files-path
+        name="updates"
+        path="updates/" />
     <cache-path
         name="incoming"
         path="." />

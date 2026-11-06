@@ -29,6 +29,7 @@ import io.nebula.mobile.patch.PatchAddon
 import io.nebula.mobile.patch.PatchException
 import io.nebula.mobile.patch.PatchReport
 import io.nebula.mobile.patch.PatchRequest
+import io.nebula.mobile.notify.Notifications
 import io.nebula.mobile.theme.ThemeTokens
 import java.io.File
 import java.util.Locale
@@ -172,6 +173,12 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
                         status.text = describe(finished, addonsToEmbed)
                         install.visibility = View.VISIBLE
                         share.visibility = View.VISIBLE
+                        Notifications.patchComplete(
+                            requireContext(),
+                            finished.output,
+                            finished.sizeBytes,
+                            app.settings,
+                        )
                     } else {
                         status.text = "Patch refused:\n${failure ?: "unknown error"}"
                     }

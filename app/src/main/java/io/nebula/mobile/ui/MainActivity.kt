@@ -21,6 +21,7 @@ import io.nebula.mobile.Nebula
 import io.nebula.mobile.NebulaApp
 import io.nebula.mobile.R
 import io.nebula.mobile.core.AddonType
+import io.nebula.mobile.core.Fonts
 import io.nebula.mobile.core.MetaParser
 import io.nebula.mobile.theme.Palette
 import java.net.HttpURLConnection
@@ -82,6 +83,8 @@ class MainActivity : AppCompatActivity() {
         tabs.setTabTextColors(palette.textMuted, palette.accent)
         tabs.setSelectedTabIndicatorColor(palette.accent)
         pager.setBackgroundColor(palette.background)
+        Fonts.apply(findViewById(R.id.root), Fonts.typefaceOf(app.settings.fontFamily))
+        Motion.reveal(pager, app.settings.animations)
     }
 
     private fun showImportMenu(anchor: View) {
@@ -240,19 +243,20 @@ class MainActivity : AppCompatActivity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
-        private val TITLES = arrayOf("Plugins", "Themes", "Patch", "Console", "About")
+        private val TITLES = arrayOf("Plugins", "Themes", "Patch", "Console", "About", "Settings")
     }
 }
 
 class TabsPagerAdapter(activity: FragmentActivity) : FragmentStateAdapter(activity) {
-    override fun getItemCount(): Int = 5
+    override fun getItemCount(): Int = 6
 
     override fun createFragment(position: Int): Fragment = when (position) {
         0 -> PluginsFragment()
         1 -> ThemesFragment()
         2 -> PatchFragment()
         3 -> ConsoleFragment()
-        else -> AboutFragment()
+        4 -> AboutFragment()
+        else -> SettingsFragment()
     }
 }
 

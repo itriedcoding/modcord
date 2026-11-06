@@ -76,6 +76,14 @@ class StateStore(private val file: File) {
             persist()
         }
 
+    /** A detached copy, used by the backup writer. */
+    fun snapshot(): JSONObject = synchronized(lock) { JSONObject(root.toString()) }
+
+    fun replaceAll(json: JSONObject) = synchronized(lock) {
+        root = JSONObject(json.toString())
+        persist()
+    }
+
     fun settings(id: String): JSONObject = synchronized(lock) {
         root.optJSONObject("settings")?.optJSONObject(id) ?: JSONObject()
     }

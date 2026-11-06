@@ -9,6 +9,7 @@ import io.nebula.mobile.core.AddonType
 import io.nebula.mobile.core.InstalledAddon
 import io.nebula.mobile.core.NebulaLog
 import io.nebula.mobile.core.PatchHistory
+import io.nebula.mobile.core.SettingsStore
 import io.nebula.mobile.core.StateStore
 import io.nebula.mobile.js.BdApiAssets
 import io.nebula.mobile.js.PluginHost
@@ -27,6 +28,7 @@ class NebulaApp(context: Context) {
     val store = AddonStore(File(context.filesDir, "addons"))
     val state = StateStore(File(context.filesDir, "state.json"))
     val patchHistory = PatchHistory(File(context.filesDir, "patches.json"))
+    val settings = SettingsStore(File(context.filesDir, "settings.json"))
     private val themeEngine = ThemeEngine()
     private val bridge = AndroidBridge(context, this)
     val host = PluginHost(

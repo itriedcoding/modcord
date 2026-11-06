@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "addons": [
+    {
+      "name": "AccentCycle",
+      "type": "plugins",
+      "version": "1.0.0",
+      "author": "Nebula",
+      "description": "Rotates the app accent colour on a timer. Exercises real timers, Settings, the events bus and the appearance bridge.",
+      "path": "app/src/main/assets/addons/plugins/accent-cycle.plugin.js",
+      "sha256": "874add4b74e65d445d96fb9a40788f898dcc53ebc616a87fa6ad815bbe14e3f5"
+    },
+    {
+      "name": "HelloWorld",
+      "type": "plugins",
+      "version": "1.0.0",
+      "author": "Nebula",
+      "description": "The smallest possible BetterDiscord plugin, using only Logger, Events and UI.",
+      "path": "app/src/main/assets/addons/plugins/hello-world.plugin.js",
+      "sha256": "7b5022795439bdfe6c5e9b44ed9d5d1491b1498d23f8618458671009536b46f2"
+    },
+    {
+      "name": "PatchDemo",
+      "type": "plugins",
+      "version": "1.0.0",
+      "author": "Nebula",
+      "description": "Demonstrates that BdApi.Patcher really wraps and restores functions, including on shared objects.",
+      "path": "app/src/main/assets/addons/plugins/patch-demo.plugin.js",
+      "sha256": "3ad32df872a32c5df56928a7b2c906fd47b99a6a5643b788328cc533cfdd174e"
+    },
+    {
+      "name": "SessionTimer",
+      "type": "plugins",
+      "version": "1.0.0",
+      "author": "Nebula",
+      "description": "Tracks how long Nebula has been used and persists it to the plugin's own data file.",
+      "path": "app/src/main/assets/addons/plugins/session-timer.plugin.js",
+      "sha256": "787e15788a6f7a1ad7f78577aac677802b44ea1285f57b7d10b07f8534199472"
+    },
+    {
+      "name": "MidnightPurple",
+      "type": "themes",
+      "version": "1.0.0",
+      "author": "Nebula",
+      "description": "Deep purple Discord palette used by Nebula as its app theme.",
+      "path": "app/src/main/assets/addons/themes/midnight-purple.theme.css",
+      "sha256": "bdbffe241e8f47067f81e4fd1b951144c49fec95d08551817945c2800e7bd0d8"
+    },
+    {
+      "name": "SolarLight",
+      "type": "themes",
+      "version": "1.0.0",
+      "author": "Nebula",
+      "description": "Warm, light Discord palette with amber accents.",
+      "path": "app/src/main/assets/addons/themes/solar-light.theme.css",
+      "sha256": "3b334c9fdf6f8683c11d597c9e32c358728c2ad473d41ec51ba9313d4187e282"
+    }
+  ]
+}

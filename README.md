@@ -40,6 +40,17 @@ build is attached there together with its release notes.
 | `BdApi.Settings` (Nebula extension) | **Works** — plugin declares a schema, app renders a native settings screen |
 | Timers (`setTimeout`, `setInterval`, `clear*`, `queueMicrotask`) | **Works** — real scheduler, cancelled when a plugin stops |
 | Themes (`.theme.css`) | **Works** — CSS is parsed, `var()` resolved, Discord variables mapped to the app palette; applied instantly |
+| Themes inside the patched Discord app | **Works** — CSS variables become Discord's React Native colour tokens, written into its modules, so native views repaint; a build that exposes none of them is reported, not faked |
+| Custom theme builder | **Works** — three colours become a real `.theme.css` with a META header, installed and applied like any other theme |
+| Local settings | **Works** — typed JSON file (atomic write), read by the UI and by patched builds |
+| Custom fonts | **Works** — switches the app between the platform's real font families |
+| Animations | **Works** — real property animators for screens and sections, switchable off |
+| Notification settings | **Works** — real channel with the chosen importance, posted when a patch finishes (Android 13+ permission requested) |
+| Quick Settings tile | **Works** — shows patched-build and enabled-plugin counts, opens Nebula |
+| Automatic updates | **Works** — GitHub Releases API, numeric version compare, download verified against the published SHA-256 |
+| Backup and restore | **Works** — settings, state and every addon's source in one JSON file via SAF |
+| Plugin marketplace | **Works** — catalogue from this repository, each download verified by SHA-256 before install |
+| Crash reports | **Works** — uncaught exceptions written to app storage and readable in Settings (no Firebase project needed) |
 | Patching a real Discord APK | **Works** — bundle injection, entry-level ZIP rewrite with Android alignment, `apksig` v1+v2+v3, verified after signing; Hermes builds refused with a reason |
 | `BdApi.Webpack`, `BdApi.DOM`, `BdApi.React`, `BdApi.Hooks`, `BdApi.ContextMenu`, `BdApi.Components` | **Not available** — these need Discord's own React/DOM renderer. Calling them throws a descriptive error. |
 
@@ -72,10 +83,17 @@ Two cases are refused rather than faked:
 
 Once patched, the loader runs inside Discord's own JavaScript context and reads
 Discord's metro module registry (`global.__r`), so `Patcher`, `Webpack.findByProps`
-and the rest operate on the modules Discord actually uses. What it still cannot do is
-style native React Native views: **CSS themes need a DOM, which Discord Android does
-not have**, and the loader reports that instead of pretending a theme applied.
-Plugins that need a DOM or React exports throw a descriptive error.
+and the rest operate on the modules Discord actually uses. Plugins that need a DOM or
+React exports throw a descriptive error.
+
+Themes in the patched app work through those modules rather than through CSS: a
+patched Discord has no DOM, but its UI reads colour tokens from plain JS objects whose
+keys are the camelCased form of Discord's CSS variables. Nebula resolves the theme with
+its real CSS parser, maps every declaration to a token (`--background-primary` ->
+`backgroundPrimary`, plus known aliases such as `brand`), and the loader writes those
+values into the modules that expose them and asks Discord's stores to repaint. If no
+module exposes the tokens, the loader reports exactly that instead of claiming the
+theme applied.
 
 A patched build is signed with a different key than the official app, so Android
 treats it as a separate install: uninstall the official Discord first, and sign in
@@ -92,6 +110,9 @@ have and writes a new one.
   patch and sign it, read the verification report, then install or share the result.
 * **Console** — live log stream from the runtime and plugins (level, scope, time).
 * **About** — version, counts, storage paths and the compatibility notes above.
+* **Settings** — font family, animations, notification channel and importance, update
+  checks and download, custom theme builder, backup/restore, marketplace catalogue and
+  install, crash reports and patch history.
 
 Import sources: file picker (SAF), URL download, or pasted source.
 
@@ -245,9 +266,16 @@ have nothing to style outside Discord.
 * Host mode has no Discord UI to render into: `Webpack`/`DOM`/`React`/`Hooks`/
   `ContextMenu`/`Components` throw by design, and theme selectors that target
   Discord's DOM are parsed but cannot be applied.
-* Patched mode reaches Discord's real modules, but CSS themes still cannot apply:
-  Discord Android renders native React Native views with no DOM. Theme files can be
-  embedded, and the loader reports the limitation at runtime.
+* Patched-mode themes depend on Discord exposing colour tokens in its bundle. A build
+  whose colour objects are shaped differently is reported as "no colour module exposed
+  any of its tokens" instead of being half-applied. There is no device in this
+  environment, so this path is covered by unit tests over the real parser and payload,
+  not by watching Discord repaint.
+* Message customisation, custom profile themes and custom emoji rendering inside the
+  patched Discord are **not** implemented: they need Discord's own message/profile
+  renderers, and a speculative hook would be a fake feature rather than a working one.
+* Crash reporting is local-only. Firebase Crashlytics needs a Firebase project and its
+  `google-services.json`, which cannot be created from here.
 * When Discord is installed as split APKs, only the base APK can be patched. If its
   bundle or native libraries live in a split, patching refuses and names the missing
   piece rather than shipping an incomplete app.
