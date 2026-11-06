@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nebula</string>
+    <string name="tab_plugins">Plugins</string>
+    <string name="tab_themes">Themes</string>
+    <string name="tab_console">Console</string>
+    <string name="tab_about">About</string>
+    <string name="import_addon">Import addon</string>
+    <string name="empty_plugins">No plugins installed yet.\nTap the + button to import a .plugin.js file.</string>
+    <string name="empty_themes">No themes installed yet.\nTap the + button to import a .theme.css file.</string>
+</resources>

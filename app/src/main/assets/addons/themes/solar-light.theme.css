@@ -1,0 +1,24 @@
+/**
+ * @name SolarLight
+ * @author Nebula
+ * @description Warm, light Discord palette with amber accents.
+ * @version 1.0.0
+ * @source https://github.com/nebula-android/nebula/tree/main/app/src/main/assets/addons/themes
+ */
+
+:root {
+    --background-primary: #fffdf7;
+    --background-secondary: #fbf4e4;
+    --background-secondary-alt: #f6ecd6;
+    --background-tertiary: #f1e3c6;
+    --background-floating: #ffffff;
+    --background-modifier-accent: #e6d5b3;
+    --background-modifier-hover: #f2e6cd;
+    --brand-experiment: #d97706;
+    --brand-500: #d97706;
+    --text-normal: #2b2318;
+    --text-muted: #6b5c46;
+    --header-primary: #1c1509;
+    --header-secondary: #57462f;
+    --interactive-normal: #6b5c46;
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.Nebula" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/nebula_accent</item>
+        <item name="colorOnPrimary">@color/nebula_on_accent</item>
+        <item name="colorSurface">@color/nebula_surface</item>
+        <item name="colorOnSurface">@color/nebula_text</item>
+        <item name="android:windowBackground">@color/nebula_background</item>
+        <item name="android:statusBarColor">@color/nebula_surface</item>
+        <item name="android:navigationBarColor">@color/nebula_surface</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:textColorPrimary">@color/nebula_text</item>
+        <item name="android:textColorSecondary">@color/nebula_text_muted</item>
+        <item name="materialAlertDialogTheme">@style/Theme.Nebula.Dialog</item>
+    </style>
+
+    <style name="Nebula.OutlinedButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <attr name="nebulaOutlinedButtonStyle" format="reference" />
+
+    <style name="Theme.Nebula.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">@color/nebula_surface</item>
+        <item name="colorOnSurface">@color/nebula_text</item>
+        <item name="colorPrimary">@color/nebula_accent</item>
+    </style>
+
+</resources>

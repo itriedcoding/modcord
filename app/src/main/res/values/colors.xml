@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="nebula_accent">#FF7C5CFC</color>
+    <color name="nebula_on_accent">#FFFFFFFF</color>
+    <color name="nebula_background">#FF0F1117</color>
+    <color name="nebula_surface">#FF171A23</color>
+    <color name="nebula_text">#FFEDEFF7</color>
+    <color name="nebula_text_muted">#FF9AA3B2</color>
+    <color name="nebula_border">#FF262B37</color>
+<color name="ic_launcher_background">#FF0F1117</color>
+</resources>

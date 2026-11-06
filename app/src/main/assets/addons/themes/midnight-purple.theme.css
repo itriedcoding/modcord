@@ -1,0 +1,35 @@
+/**
+ * @name MidnightPurple
+ * @author Nebula
+ * @description Deep purple Discord palette used by Nebula as its app theme.
+ * @version 1.0.0
+ * @source https://github.com/nebula-android/nebula/tree/main/app/src/main/assets/addons/themes
+ */
+
+:root {
+    --background-primary: #0b0716;
+    --background-primary-alt: #0b0716;
+    --background-secondary: #120c22;
+    --background-secondary-alt: #150f28;
+    --background-tertiary: #1a1130;
+    --background-floating: #1f1538;
+    --background-modifier-accent: #2b1e4a;
+    --background-modifier-hover: #251a40;
+    --brand-experiment: #a855f7;
+    --brand-500: #a855f7;
+    --text-normal: #ece6ff;
+    --text-muted: #b3a3d9;
+    --header-primary: #ffffff;
+    --header-secondary: #c7b8ea;
+    --interactive-normal: #b3a3d9;
+    --channeltextarea-background: var(--background-secondary);
+}
+
+.theme-dark {
+    --background-modifier-selected: #2f2152;
+}
+
+.theme-dark .container-1D34oG,
+.theme-dark .chat-2ZfjoI {
+    background-color: var(--background-primary);
+}
