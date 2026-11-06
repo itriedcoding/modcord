@@ -19,7 +19,10 @@ import io.nebula.mobile.R
 import io.nebula.mobile.core.AddonType
 import io.nebula.mobile.patch.ApkIdentity
 import io.nebula.mobile.patch.ApkSigning
+import io.nebula.mobile.patch.ApkSource
+import io.nebula.mobile.patch.DiscordLocator
 import io.nebula.mobile.patch.DiscordPatcher
+import io.nebula.mobile.patch.InstalledDiscord
 import io.nebula.mobile.patch.PatchAddon
 import io.nebula.mobile.patch.PatchException
 import io.nebula.mobile.patch.PatchReport
@@ -38,6 +41,9 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
     private var selected: File? = null
     private var patched: PatchReport? = null
     private var busy = false
+    private var detected: InstalledDiscord? = null
+    private var detectedView: TextView? = null
+    private var useInstalledButton: MaterialButton? = null
 
     private val pickApk = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) copyIntoCache(uri)
@@ -59,7 +65,17 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
         install.visibility = View.GONE
         share.visibility = View.GONE
         addons.text = addonSummary()
-        status.text = "No APK selected yet."
+        status.text = "Looking for an installed Discord…"
+
+        detectedView = view.findViewById(R.id.txtDiscordDetected)
+        useInstalledButton = view.findViewById<MaterialButton>(R.id.btnUseInstalled).also { button ->
+            button.visibility = View.GONE
+            button.setOnClickListener {
+                if (busy) return@setOnClickListener
+                detected?.let { found -> prepareInstalled(found) }
+            }
+        }
+        detectInstalled()
 
         pick.setOnClickListener {
             if (busy) return@setOnClickListener
@@ -125,6 +141,84 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
     }
 
     /* ------------------------------------------------------------------ */
+
+    /** Looks for Discord through PackageManager, then prepares its APK automatically. */
+    private fun detectInstalled() {
+        val context = requireContext().applicationContext
+        Thread {
+            val found = try {
+                DiscordLocator.find(context)
+            } catch (e: Exception) {
+                emptyList()
+            }
+            activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                val first = found.firstOrNull()
+                detected = first
+                if (first == null) {
+                    detectedView?.text =
+                        "No installed Discord found on this device (looked for " +
+                            DiscordLocator.KNOWN_PACKAGES.joinToString(", ") +
+                            "). Install Discord, or choose an APK file below."
+                    useInstalledButton?.visibility = View.GONE
+                    view?.findViewById<TextView>(R.id.txtPatchStatus)?.text = "No APK source yet."
+                } else {
+                    detectedView?.text = "Detected ${first.summary()}\n${first.apkPath}"
+                    useInstalledButton?.visibility = View.VISIBLE
+                    useInstalledButton?.text = "Re-read installed Discord ${first.versionName}"
+                    if (selected == null) prepareInstalled(first)
+                }
+            }
+        }.start()
+    }
+
+    /** Copies the installed base APK and makes it the patch source. */
+    private fun prepareInstalled(discord: InstalledDiscord) {
+        val context = requireContext().applicationContext
+        val status = view?.findViewById<TextView>(R.id.txtPatchStatus) ?: return
+        busy = true
+        status.text = "Reading installed ${discord.label}…"
+        Thread {
+            var problem: String? = null
+            var copied: File? = null
+            try {
+                val target = File(
+                    context.cacheDir,
+                    "installed-${discord.packageName}-${discord.versionCode}.apk",
+                )
+                copied = ApkSource.copy(discord.apkPath, target)
+            } catch (e: Exception) {
+                problem = e.message
+            }
+            val file = copied
+            activity?.runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                busy = false
+                if (file == null) {
+                    selected = null
+                    status.text =
+                        "Could not use the installed Discord APK: ${problem ?: "unknown error"}\n" +
+                            "Choose an APK file instead."
+                    return@runOnUiThread
+                }
+                selected = file
+                patched = null
+                view?.findViewById<MaterialButton>(R.id.btnInstallPatched)?.visibility = View.GONE
+                view?.findViewById<MaterialButton>(R.id.btnSharePatched)?.visibility = View.GONE
+                status.text = buildString {
+                    appendLine("Source: installed ${discord.label} ${discord.versionName} · ${humanSize(file)}")
+                    if (discord.isSplitInstall) {
+                        appendLine(
+                            "Note: Discord is installed as ${discord.splitPaths.size + 1} APKs. " +
+                                "Only the base APK can be patched; if its bundle or native libraries " +
+                                "sit in a split, patching refuses with that reason.",
+                        )
+                    }
+                    append("Ready to patch.")
+                }
+            }
+        }.start()
+    }
 
     private fun enabledPlugins(): List<PatchAddon> =
         app.store.list(AddonType.PLUGIN)

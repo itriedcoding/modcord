@@ -9,7 +9,8 @@
     <string name="empty_plugins">No plugins installed yet.\nTap the + button to import a .plugin.js file.</string>
     <string name="empty_themes">No themes installed yet.\nTap the + button to import a .theme.css file.</string>
     <string name="patch_explain">Patch the real Discord app.\n\nPick an installed Discord APK: Nebula injects its loader and your enabled plugins into Discord\'s own React Native bundle, rebuilds the container with Android\'s alignment rules, signs the result, and reports whether the signature verifies.\n\nThe patched build uses a different signing key than the official app, so Android treats it as a separate install: uninstall the official Discord first, and expect to sign in again.\n\nA build that ships Hermes bytecode instead of a JavaScript bundle is refused with an explanation rather than producing an app that crashes.</string>
-    <string name="patch_pick_apk">Select Discord APK</string>
+    <string name="patch_pick_apk">Select APK file instead</string>
+    <string name="patch_use_installed">Re-read installed Discord</string>
     <string name="patch_run">Patch and sign</string>
     <string name="patch_install">Install patched app</string>
     <string name="patch_share">Share patched APK</string>

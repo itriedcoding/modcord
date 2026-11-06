@@ -80,6 +80,18 @@ object DiscordPatcher {
         if (apk.length() < 1024) throw PatchException("${apk.name} is too small to be an APK")
         request.outputDirectory.mkdirs()
 
+        // The rewrite stages each entry and then signs a second copy, so a patch needs
+        // roughly three times the APK size. Discord installs are large; failing here with
+        // a number beats failing halfway through with a truncated file.
+        val needed = apk.length() * 3
+        val usable = request.outputDirectory.usableSpace
+        if (usable > 0 && usable < needed) {
+            throw PatchException(
+                "Not enough free space to patch: about ${needed / (1024 * 1024)} MB needed, " +
+                    "${usable / (1024 * 1024)} MB available in ${request.outputDirectory.absolutePath}",
+            )
+        }
+
         val bundleEntry: String
         val bundleBytes: ByteArray
         val names: List<String>

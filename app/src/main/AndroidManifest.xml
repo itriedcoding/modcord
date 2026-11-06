@@ -3,6 +3,15 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Required so the patched APK can be handed to the system installer on Android 8+. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Without these, Android 11+ hides installed packages from PackageManager. -->
+    <queries>
+        <package android:name="com.discord" />
+        <package android:name="com.discord.alpha" />
+        <package android:name="com.discord.beta" />
+    </queries>
 
     <application
         android:name=".NebulaApplication"

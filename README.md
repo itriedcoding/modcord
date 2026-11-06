@@ -16,15 +16,13 @@ verifies the signature. See [Patching the Discord app itself](#patching-the-disc
 
 ## Download
 
-Latest: **[Nebula 1.1.0](https://github.com/itriedcoding/modcord/releases/tag/v1.1.0)**
+**[Latest release](https://github.com/itriedcoding/modcord/releases/latest)** — every
+build is attached there together with its release notes.
 
-* **[dist/nebula-1.1.0.apk](dist/nebula-1.1.0.apk)** — 9.1 MB, signed release build
-* SHA-256: `4132870b50541a3a60e1bcbe46f11db5540620a565384eb375b140a403c931bd`
-* Release notes: [dist/RELEASE_NOTES_v1.1.0.md](dist/RELEASE_NOTES_v1.1.0.md)
-* Previous build: [dist/nebula-1.0.0.apk](dist/nebula-1.0.0.apk) (`v1.0.0`)
-
-`.github/workflows/publish-release.yml` attaches the newest `dist/nebula-*.apk` to its
-release automatically, so the shipped artifact and the release cannot drift apart.
+* Signed APKs are committed under [`dist/`](dist) as `nebula-<version>.apk`
+* Each one has a `nebula-<version>.apk.sha256` sidecar next to it
+* `.github/workflows/publish-release.yml` attaches the newest `dist/nebula-*.apk` to its
+  release automatically, so the shipped artifact and the release cannot drift apart
 
 ## What actually works
 
@@ -47,7 +45,11 @@ release automatically, so the shipped artifact and the release cannot drift apar
 
 ### Patching the Discord app itself
 
-The **Patch** tab modifies a real Discord APK instead of hosting addons beside it:
+The **Patch** tab modifies the Discord build that is already installed on the phone.
+It asks `PackageManager` for Discord (`com.discord`, plus the alpha and beta package
+names), reads that installation's own base APK, and works from there - nothing has to
+be downloaded or picked by hand. A file picker stays available for other builds and for
+devices where another app's APK cannot be read. The pipeline is:
 
 1. The APK is opened as a ZIP and its React Native bundle
    (`assets/index.android.bundle`) is located.
@@ -246,6 +248,9 @@ have nothing to style outside Discord.
 * Patched mode reaches Discord's real modules, but CSS themes still cannot apply:
   Discord Android renders native React Native views with no DOM. Theme files can be
   embedded, and the loader reports the limitation at runtime.
+* When Discord is installed as split APKs, only the base APK can be patched. If its
+  bundle or native libraries live in a split, patching refuses and names the missing
+  piece rather than shipping an incomplete app.
 * Patched mode needs a Discord build that ships a plain JavaScript bundle;
   Hermes-bytecode builds are refused. The patch pipeline is verified on a fixture APK
   under JVM tests — it has **not** been run against a real Discord APK on a device
