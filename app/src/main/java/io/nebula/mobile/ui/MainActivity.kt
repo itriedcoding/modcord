@@ -240,17 +240,18 @@ class MainActivity : AppCompatActivity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
-        private val TITLES = arrayOf("Plugins", "Themes", "Console", "About")
+        private val TITLES = arrayOf("Plugins", "Themes", "Patch", "Console", "About")
     }
 }
 
 class TabsPagerAdapter(activity: FragmentActivity) : FragmentStateAdapter(activity) {
-    override fun getItemCount(): Int = 4
+    override fun getItemCount(): Int = 5
 
     override fun createFragment(position: Int): Fragment = when (position) {
         0 -> PluginsFragment()
         1 -> ThemesFragment()
-        2 -> ConsoleFragment()
+        2 -> PatchFragment()
+        3 -> ConsoleFragment()
         else -> AboutFragment()
     }
 }

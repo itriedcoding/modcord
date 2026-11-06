@@ -11,8 +11,8 @@ android {
         applicationId = "io.nebula.mobile"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         vectorDrawables.useSupportLibrary = true
     }
 
@@ -78,6 +78,10 @@ dependencies {
     // native libraries for every Android ABI. Rhino was evaluated first and rejected:
     // it cannot parse `class`, which every BetterDiscord plugin uses.
     implementation("io.github.taoweiji.quickjs:quickjs-android:1.4.6")
+
+    // Real APK signing and signature verification (v1 + v2 + v3) for the Discord patcher.
+    // This is the same implementation Android Studio and apksigner use.
+    implementation("com.android.tools.build:apksig:8.5.2")
 
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")

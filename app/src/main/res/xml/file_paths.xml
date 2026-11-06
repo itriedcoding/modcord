@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-files-path
+        name="patched_external"
+        path="patched/" />
+    <files-path
+        name="patched_internal"
+        path="patched/" />
+    <cache-path
+        name="incoming"
+        path="." />
+</paths>

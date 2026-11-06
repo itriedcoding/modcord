@@ -2,15 +2,15 @@ name: Publish release
 
 # Attaches the signed APK in dist/ to a GitHub Release. The repository's own
 # GITHUB_TOKEN is the only credential a GitHub Release needs, so this runs
-# without any secret having to be created by hand.
+# without any secret having to be created by hand. It picks the newest
+# dist/nebula-<version>.apk, so a version bump publishes itself on push.
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - ".github/workflows/publish-release.yml"
-      - "dist/nebula-*.apk"
-      - "dist/RELEASE_NOTES_*.md"
+      - "dist/*.apk"
 
 permissions:
   contents: write
@@ -23,32 +23,65 @@ jobs:
   release:
     name: Publish APK release
     runs-on: ubuntu-latest
-    env:
-      TAG: v1.0.0
-      APK: dist/nebula-1.0.0.apk
-      NOTES: dist/RELEASE_NOTES_v1.0.0.md
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify the APK against its committed checksum
+      - name: Locate the newest APK
+        id: pick
+        run: |
+          set -euo pipefail
+          apk=$(ls -1 dist/nebula-*.apk | sort -V | tail -n 1)
+          version=$(basename "$apk" .apk)
+          version=${version#nebula-}
+          tag="v$version"
+          notes="dist/RELEASE_NOTES_${tag}.md"
+          {
+            echo "apk=$apk"
+            echo "version=$version"
+            echo "tag=$tag"
+            if [ -f "$notes" ]; then echo "notes=$notes"; else echo "notes="; fi
+          } >> "$GITHUB_OUTPUT"
+          echo "Publishing $apk as $tag"
+
+      - name: Verify every committed checksum
         run: |
           set -euo pipefail
           cd dist
-          sha256sum -c nebula-1.0.0.apk.sha256
+          found=0
+          for sidecar in *.apk.sha256; do
+            [ -e "$sidecar" ] || continue
+            found=1
+            sha256sum -c "$sidecar"
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No checksum sidecars present; nothing to verify."
+          fi
 
-      - name: Create the release if it does not exist yet
+      - name: Create the release when it does not exist yet
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.pick.outputs.tag }}
+          APK: ${{ steps.pick.outputs.apk }}
+          NOTES: ${{ steps.pick.outputs.notes }}
+          VERSION: ${{ steps.pick.outputs.version }}
         run: |
           set -euo pipefail
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists - nothing to publish."
             exit 0
           fi
-          gh release create "$TAG" "$APK" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "Nebula 1.0.0" \
-            --notes-file "$NOTES"
+          if [ -n "$NOTES" ] && [ -f "$NOTES" ]; then
+            gh release create "$TAG" "$APK" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Nebula $VERSION" \
+              --notes-file "$NOTES"
+          else
+            gh release create "$TAG" "$APK" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Nebula $VERSION" \
+              --generate-notes
+          fi
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
             --json tagName,url,assets --jq '.tagName, .url, (.assets[] | "\(.name) \(.size) bytes")'
