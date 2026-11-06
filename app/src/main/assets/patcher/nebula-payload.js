@@ -276,6 +276,7 @@ var __nebula_layer = (function () {
   }
 
   var started = [];
+  var appliedTokens = 0;
 
   function runAddon(addon) {
     if (addon.kind !== 'plugin') {
@@ -307,23 +308,68 @@ var __nebula_layer = (function () {
     }
   }
 
-  function applyTheme(theme) {
-    if (typeof document !== 'undefined' && document && document.head) {
-      try {
-        var style = document.createElement('style');
-        style.textContent = theme.source;
-        document.head.appendChild(style);
-        logger.info('Applied theme ' + theme.name);
-        return;
-      } catch (e) {
-        fail('Theme ' + theme.name + ' could not be inserted: ' + e);
-        return;
-      }
+  function tokenKeys(tokens) {
+    var keys = [];
+    for (var key in tokens) {
+      if (Object.prototype.hasOwnProperty.call(tokens, key)) keys.push(key);
     }
-    fail(
-      'Theme ' + theme.name + ' was not applied: this Discord build renders native React Native ' +
-      'views with no DOM, so CSS cannot target them. Use the accent override in Nebula instead.'
-    );
+    return keys;
+  }
+
+  /*
+   * Discord Android renders native React Native views, so a stylesheet cannot be attached
+   * to anything. What does repaint them is the colour token objects in Discord's own
+   * bundle: their keys are the camelCased Discord CSS variables. Nebula resolves the
+   * theme CSS into those tokens and writes them into every module that exposes them.
+   */
+  function applyTheme(theme) {
+    var tokens = theme.tokens || {};
+    var keys = tokenKeys(tokens);
+    if (!keys.length) {
+      fail(
+        'Theme ' + theme.name + ' declares no CSS colour variables that map to a Discord ' +
+        'token, so there is nothing to apply.'
+      );
+      return;
+    }
+    var targets = findAll(function (exports) {
+      if (!exports || typeof exports !== 'object') return false;
+      var hits = 0;
+      for (var i = 0; i < keys.length && i < 24; i++) {
+        if (typeof exports[keys[i]] === 'string') hits++;
+        if (hits >= 2) return true;
+      }
+      return false;
+    });
+    var applied = 0;
+    var touched = 0;
+    for (var t = 0; t < targets.length; t++) {
+      var target = targets[t];
+      var before = applied;
+      for (var k = 0; k < keys.length; k++) {
+        if (typeof target[keys[k]] === 'string') {
+          target[keys[k]] = tokens[keys[k]];
+          applied++;
+        }
+      }
+      if (applied > before) touched++;
+    }
+    if (applied === 0) {
+      fail(
+        'Theme ' + theme.name + ' was not applied: no colour module in this Discord build ' +
+        'exposed any of its ' + keys.length + ' token(s), so the bundle layout differs from ' +
+        'what Nebula knows how to patch.'
+      );
+      return;
+    }
+    var stores = findAll(function (exports) {
+      return exports && typeof exports.emitChange === 'function';
+    });
+    for (var s = 0; s < stores.length; s++) {
+      try { stores[s].emitChange(); } catch (ignored) {}
+    }
+    appliedTokens += applied;
+    logger.info('Applied theme ' + theme.name + ': ' + applied + ' token(s) across ' + touched + ' module(s)');
   }
 
   collect();
@@ -336,6 +382,7 @@ var __nebula_layer = (function () {
     version: payload.version,
     addons: payload.addons.length,
     started: started.length,
+    themeTokens: appliedTokens,
     errors: errors,
     modules: modules.length,
     api: {

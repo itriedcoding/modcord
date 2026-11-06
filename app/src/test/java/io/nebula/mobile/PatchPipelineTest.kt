@@ -189,6 +189,37 @@ class PatchPipelineTest {
 
     /* ------------------------------------------------------------------ */
 
+    @Test
+    fun embedsResolvedThemeColourTokensInThePayload() {
+        val apk = fixture(sampleBundle.toByteArray())
+        val output = Files.createTempDirectory("nebula-tokens-out").toFile()
+        val css = ":root { --background-primary: #0B0716; --brand-500: rgb(168, 85, 247); }"
+        val tokens = io.nebula.mobile.theme.ThemeTokens.resolve(css)
+        assertEquals("#0B0716", tokens["backgroundPrimary"])
+        assertEquals("#A855F7", tokens["brand"])
+
+        val report = DiscordPatcher.patch(
+            PatchRequest(
+                apk = apk,
+                outputDirectory = output,
+                addons = listOf(PatchAddon("midnight", "Midnight", "1.0.0", "theme", css, tokens)),
+                loaderJs = loaderSource(),
+                identity = identity(),
+                nebulaVersion = "1.0.0",
+            ),
+        )
+
+        ZipFile(report.output).use { zip ->
+            val bundle = zip.getInputStream(zip.getEntry(bundlePath)!!).use { it.bufferedReader().readText() }
+            assertTrue(
+                "payload should carry the resolved token map, saw: " +
+                    bundle.substringAfter("\"tokens\"", "(no tokens key)").take(120),
+                bundle.contains("\"tokens\":{\"backgroundPrimary\":\"#0B0716\""),
+            )
+            assertTrue("aliases should be included", bundle.contains("\"brand\":\"#A855F7\""))
+        }
+    }
+
     private fun patchFailure(apk: File): PatchException {
         val output = Files.createTempDirectory("nebula-fail-out").toFile()
         return try {

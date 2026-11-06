@@ -17,6 +17,8 @@ import io.nebula.mobile.Nebula
 import io.nebula.mobile.NebulaApp
 import io.nebula.mobile.R
 import io.nebula.mobile.core.AddonType
+import io.nebula.mobile.core.MetaParser
+import io.nebula.mobile.core.PatchRecord
 import io.nebula.mobile.patch.ApkIdentity
 import io.nebula.mobile.patch.ApkSigning
 import io.nebula.mobile.patch.ApkSource
@@ -27,13 +29,14 @@ import io.nebula.mobile.patch.PatchAddon
 import io.nebula.mobile.patch.PatchException
 import io.nebula.mobile.patch.PatchReport
 import io.nebula.mobile.patch.PatchRequest
+import io.nebula.mobile.theme.ThemeTokens
 import java.io.File
 import java.util.Locale
 
 /**
- * Patches a real Discord APK: injects the Nebula loader and the enabled plugins into
- * Discord's own React Native bundle, rebuilds the container, signs it, then offers the
- * result to the system installer.
+ * Patches the Discord installed on this phone: injects the Nebula loader, the enabled
+ * plugins and the enabled themes' colour tokens into Discord's own React Native bundle,
+ * rebuilds the container, signs it and offers the result to the installer.
  */
 class PatchFragment : Fragment(R.layout.fragment_patch) {
 
@@ -45,6 +48,16 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
     private var detectedView: TextView? = null
     private var useInstalledButton: MaterialButton? = null
     private var getDiscordButton: MaterialButton? = null
+    private var historyView: TextView? = null
+
+    /** APIs that genuinely cannot exist inside Discord's bundle. */
+    private val unsupportedApis = listOf(
+        "BdApi.DOM",
+        "BdApi.React",
+        "BdApi.Hooks",
+        "BdApi.Components",
+        "BdApi.ContextMenu",
+    )
 
     private val pickApk = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) copyIntoCache(uri)
@@ -59,28 +72,7 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
         super.onResume()
         // Returning from the store after installing Discord should pick it up by itself.
         if (selected == null) detectInstalled()
-    }
-
-    /**
-     * Opens the official store listing. Nebula never downloads Discord's APK on its own:
-     * only Discord can distribute Discord, and an APK from a mirror would be unverifiable.
-     */
-    private fun openDiscordInstallPage() {
-        val market = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.discord"))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val web = Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse("https://play.google.com/store/apps/details?id=com.discord"),
-        )
-        try {
-            startActivity(market)
-        } catch (e: Exception) {
-            try {
-                startActivity(web)
-            } catch (also: Exception) {
-                toast("No store app available. Install Discord, then reopen this tab.")
-            }
-        }
+        renderHistory()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -91,6 +83,7 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
         val install = view.findViewById<MaterialButton>(R.id.btnInstallPatched)
         val share = view.findViewById<MaterialButton>(R.id.btnSharePatched)
 
+        historyView = view.findViewById(R.id.txtPatchHistory)
         install.visibility = View.GONE
         share.visibility = View.GONE
         addons.text = addonSummary()
@@ -108,6 +101,7 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
             button.visibility = View.GONE
             button.setOnClickListener { openDiscordInstallPage() }
         }
+        renderHistory()
         detectInstalled()
 
         pick.setOnClickListener {
@@ -122,10 +116,12 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
                 toast("Pick the Discord APK first")
                 return@setOnClickListener
             }
+            val addonsToEmbed = patchAddons()
             busy = true
             run.isEnabled = false
             status.text = "Reading ${apkFile.name}…"
             val context = requireContext().applicationContext
+            val sourceVersion = detected?.versionCode ?: 0L
             Thread {
                 var result: PatchReport? = null
                 var error: String? = null
@@ -139,7 +135,7 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
                         PatchRequest(
                             apk = apkFile,
                             outputDirectory = outputDirectory,
-                            addons = enabledPlugins(),
+                            addons = addonsToEmbed,
                             loaderJs = loader,
                             identity = identity(context),
                             nebulaVersion = BuildConfig.VERSION_NAME,
@@ -154,17 +150,32 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
                 }
                 val finished = result
                 val failure = error
+                if (finished != null) {
+                    app.patchHistory.add(
+                        PatchRecord(
+                            file = finished.output.name,
+                            sha256 = finished.sha256,
+                            sizeBytes = finished.sizeBytes,
+                            discordVersionCode = sourceVersion,
+                            addonCount = finished.addonCount,
+                            themeTokens = addonsToEmbed.filter { it.kind == "theme" }.sumOf { it.tokens.size },
+                            createdAt = System.currentTimeMillis(),
+                        ),
+                    )
+                }
                 activity?.runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
                     busy = false
                     run.isEnabled = true
                     if (finished != null) {
                         patched = finished
-                        status.text = describe(finished)
+                        status.text = describe(finished, addonsToEmbed)
                         install.visibility = View.VISIBLE
                         share.visibility = View.VISIBLE
                     } else {
                         status.text = "Patch refused:\n${failure ?: "unknown error"}"
                     }
+                    renderHistory()
                 }
             }.start()
         }
@@ -199,9 +210,21 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
                     view?.findViewById<TextView>(R.id.txtPatchStatus)?.text = "No APK source yet."
                 } else {
                     getDiscordButton?.visibility = View.GONE
-                    detectedView?.text = "Detected ${first.summary()}\n${first.apkPath}"
                     useInstalledButton?.visibility = View.VISIBLE
                     useInstalledButton?.text = "Re-read installed Discord ${first.versionName}"
+                    val last = app.patchHistory.latest()
+                    val changed = last != null && last.discordVersionCode > 0 &&
+                        last.discordVersionCode != first.versionCode
+                    detectedView?.text = buildString {
+                        append("Detected ${first.summary()}\n${first.apkPath}")
+                        if (changed) {
+                            append(
+                                "\n\nDiscord changed since your last patch " +
+                                    "(${last!!.discordVersionCode} → ${first.versionCode}). " +
+                                    "Patch again so your addons keep working.",
+                            )
+                        }
+                    }
                     if (selected == null) prepareInstalled(first)
                 }
             }
@@ -242,7 +265,7 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
                 view?.findViewById<MaterialButton>(R.id.btnInstallPatched)?.visibility = View.GONE
                 view?.findViewById<MaterialButton>(R.id.btnSharePatched)?.visibility = View.GONE
                 status.text = buildString {
-                    appendLine("Source: installed ${discord.label} ${discord.versionName} · ${humanSize(file)}")
+                    appendLine("Source: installed ${discord.label} ${discord.versionName} · ${humanSizeOf(file.length())}")
                     if (discord.isSplitInstall) {
                         appendLine(
                             "Note: Discord is installed as ${discord.splitPaths.size + 1} APKs. " +
@@ -256,35 +279,123 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
         }.start()
     }
 
-    private fun enabledPlugins(): List<PatchAddon> =
-        app.store.list(AddonType.PLUGIN)
-            .filter { addon -> app.state.isEnabled(AddonType.PLUGIN, addon.id) }
-            .mapNotNull { addon ->
-                try {
-                    PatchAddon(
-                        id = addon.id,
-                        name = addon.name,
-                        version = addon.version,
-                        kind = "plugin",
-                        source = app.store.read(addon),
-                    )
-                } catch (e: Exception) {
-                    null
-                }
+    /** Enabled plugins plus enabled themes, with their CSS already resolved to tokens. */
+    private fun patchAddons(): List<PatchAddon> {
+        val result = ArrayList<PatchAddon>()
+        for (addon in app.store.list(AddonType.PLUGIN)) {
+            if (!app.state.isEnabled(AddonType.PLUGIN, addon.id)) continue
+            val source = try {
+                app.store.read(addon)
+            } catch (e: Exception) {
+                continue
             }
+            result.add(PatchAddon(addon.id, addon.name, addon.version, "plugin", source))
+        }
+        for (addon in app.store.list(AddonType.THEME)) {
+            if (!app.state.isEnabled(AddonType.THEME, addon.id)) continue
+            val css = try {
+                app.store.read(addon)
+            } catch (e: Exception) {
+                continue
+            }
+            val tokens = ThemeTokens.resolve(MetaParser.stripMeta(css))
+            result.add(PatchAddon(addon.id, addon.name, addon.version, "theme", css, tokens))
+        }
+        return result
+    }
 
     private fun addonSummary(): String {
-        val plugins = enabledPlugins()
-        val head =
-            if (plugins.isEmpty()) {
-                "No plugins are enabled, so the patched app will only carry the Nebula loader. " +
-                    "Enable plugins on the Plugins tab to embed them."
-            } else {
-                "Will embed ${plugins.size} plugin(s): " + plugins.joinToString(", ") { it.name }
+        val addons = patchAddons()
+        val plugins = addons.filter { it.kind == "plugin" }
+        val themes = addons.filter { it.kind == "theme" }
+        val tokens = themes.sumOf { it.tokens.size }
+        val warnings = plugins
+            .flatMap { plugin ->
+                unsupportedApis
+                    .filter { api -> plugin.source.contains(api) }
+                    .map { api -> "${plugin.name} calls $api" }
             }
-        return head + "\n\nCSS themes cannot be embedded into Discord: its Android UI is native " +
-            "React Native, not a DOM, so there are no CSS-selectable elements. The loader reports " +
-            "this instead of pretending a theme applied."
+            .distinct()
+        return buildString {
+            if (addons.isEmpty()) {
+                appendLine("No addons are enabled. The patched app would carry only the Nebula loader.")
+            } else {
+                appendLine("Embedding ${plugins.size} plugin(s) and ${themes.size} theme(s).")
+                if (themes.isNotEmpty()) {
+                    appendLine(
+                        "Theme colour tokens: $tokens. They are written into Discord's React Native " +
+                            "token objects, which is what repaints native views.",
+                    )
+                }
+            }
+            if (warnings.isNotEmpty()) {
+                appendLine()
+                appendLine("These calls have no equivalent inside Discord and throw at runtime:")
+                warnings.forEach { appendLine("· $it") }
+            }
+        }.trim()
+    }
+
+    private fun renderHistory() {
+        val view = historyView ?: return
+        val records = try {
+            app.patchHistory.read()
+        } catch (e: Exception) {
+            emptyList<PatchRecord>()
+        }
+        val latest = records.firstOrNull()
+        view.text = if (latest == null) {
+            "No patched builds yet."
+        } else {
+            buildString {
+                appendLine("Last patch: ${latest.file}")
+                appendLine(
+                    "${humanSizeOf(latest.sizeBytes)} · sha ${latest.sha256.take(12)}… · " +
+                        "${latest.addonCount} addon(s) · ${latest.themeTokens} colour token(s)",
+                )
+                append("${records.size} build(s) recorded")
+            }
+        }
+    }
+
+    private fun describe(report: PatchReport, addons: List<PatchAddon>): String = buildString {
+        val tokens = addons.filter { it.kind == "theme" }.sumOf { it.tokens.size }
+        appendLine("Patched and signed: ${report.output.name}")
+        appendLine("Size ${humanSizeOf(report.sizeBytes)} · SHA-256 ${report.sha256.take(16)}…")
+        appendLine("Bundle ${report.bundleEntry} (${report.bundleBytesBefore} → ${report.bundleBytesAfter} bytes)")
+        appendLine("Addons embedded: ${report.addonCount} · colour tokens: $tokens")
+        appendLine(
+            "Entries rewritten: ${report.rewrite.entryCount} " +
+                "(${report.rewrite.droppedEntries.size} old signature file(s) dropped)",
+        )
+        appendLine(
+            "Signature verified: v1=${report.signature.schemeV1} " +
+                "v2=${report.signature.schemeV2} v3=${report.signature.schemeV3}",
+        )
+        appendLine("Signer: ${report.signerSubject}")
+        append("Saved to ${report.output.absolutePath}")
+    }
+
+    /**
+     * Opens the official store listing. Nebula never downloads Discord's APK on its own:
+     * only Discord can distribute Discord, and an APK from a mirror would be unverifiable.
+     */
+    private fun openDiscordInstallPage() {
+        val market = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.discord"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val web = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("https://play.google.com/store/apps/details?id=com.discord"),
+        )
+        try {
+            startActivity(market)
+        } catch (e: Exception) {
+            try {
+                startActivity(web)
+            } catch (also: Exception) {
+                toast("No store app available. Install Discord, then reopen this tab.")
+            }
+        }
     }
 
     private fun identity(context: Context): ApkIdentity {
@@ -326,27 +437,12 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
             selected = target
             patched = null
             view?.findViewById<TextView>(R.id.txtPatchStatus)?.text =
-                "Selected ${target.name} (${humanSize(target)})."
+                "Selected ${target.name} (${humanSizeOf(target.length())})."
             view?.findViewById<MaterialButton>(R.id.btnInstallPatched)?.visibility = View.GONE
             view?.findViewById<MaterialButton>(R.id.btnSharePatched)?.visibility = View.GONE
         } catch (e: Exception) {
             toast("Could not read that APK: ${e.message}")
         }
-    }
-
-    private fun describe(report: PatchReport): String = buildString {
-        appendLine("Patched and signed: ${report.output.name}")
-        appendLine("Size ${humanSize(report.output)} · SHA-256 ${report.sha256.take(16)}…")
-        appendLine("Bundle ${report.bundleEntry}")
-        appendLine("  ${report.bundleBytesBefore} → ${report.bundleBytesAfter} bytes")
-        appendLine("Addons embedded: ${report.addonCount}")
-        appendLine("Entries rewritten: ${report.rewrite.entryCount} (${report.rewrite.droppedEntries.size} old signature file(s) dropped)")
-        appendLine(
-            "Signature verified: v1=${report.signature.schemeV1} " +
-                "v2=${report.signature.schemeV2} v3=${report.signature.schemeV3}",
-        )
-        appendLine("Signer: ${report.signerSubject}")
-        append("Saved to ${report.output.absolutePath}")
     }
 
     private fun installPatched() {
@@ -378,9 +474,9 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
         }
     }
 
-    private fun humanSize(file: File): String = when {
-        file.length() >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB", file.length() / 1048576.0)
-        else -> "${file.length() / 1024} KB"
+    private fun humanSizeOf(bytes: Long): String = when {
+        bytes >= 1024 * 1024 -> String.format(Locale.US, "%.1f MB", bytes / 1048576.0)
+        else -> "${bytes / 1024} KB"
     }
 
     private fun toast(message: String) {

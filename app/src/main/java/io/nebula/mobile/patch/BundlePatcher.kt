@@ -11,6 +11,8 @@ data class PatchAddon(
     /** `plugin` or `theme`; the loader treats them differently. */
     val kind: String,
     val source: String,
+    /** For themes: Discord React Native colour tokens resolved from the CSS. */
+    val tokens: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -72,7 +74,13 @@ object BundlePatcher {
             built.append("\"name\":").append(json(addon.name)).append(',')
             built.append("\"version\":").append(json(addon.version)).append(',')
             built.append("\"kind\":").append(json(addon.kind)).append(',')
-            built.append("\"source\":").append(json(addon.source))
+            built.append("\"source\":").append(json(addon.source)).append(',')
+            built.append("\"tokens\":{")
+            addon.tokens.entries.forEachIndexed { index, entry ->
+                if (index > 0) built.append(',')
+                built.append(json(entry.key)).append(':').append(json(entry.value))
+            }
+            built.append('}')
             built.append('}')
         }
         built.append("]}")

@@ -90,10 +90,20 @@
             android:visibility="gone" />
 
         <TextView
+            android:id="@+id/txtPatchHistory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="?attr/colorOnSurface"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
+        <TextView
             android:id="@+id/txtPatchStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="16dp"
             android:fontFamily="monospace"
             android:lineSpacingExtra="3dp"
             android:textColor="?attr/colorOnSurface"

@@ -11,8 +11,8 @@ android {
         applicationId = "io.nebula.mobile"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.4.0"
         vectorDrawables.useSupportLibrary = true
         // The app ships English UI text only; narrowing locales removes duplicated
         // Material/AndroidX translations from resources.arsc and res/.
