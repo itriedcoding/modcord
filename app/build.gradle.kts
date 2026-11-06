@@ -11,9 +11,12 @@ android {
         applicationId = "io.nebula.mobile"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
         vectorDrawables.useSupportLibrary = true
+        // The app ships English UI text only; narrowing locales removes duplicated
+        // Material/AndroidX translations from resources.arsc and res/.
+        resourceConfigurations.add("en")
     }
 
     signingConfigs {
@@ -28,8 +31,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Safe only because every JNI-visible class is kept explicitly in
+            // proguard-rules.pro; the built DEX is checked with dexdump afterwards.
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

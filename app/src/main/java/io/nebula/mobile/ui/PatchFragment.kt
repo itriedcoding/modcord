@@ -44,6 +44,7 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
     private var detected: InstalledDiscord? = null
     private var detectedView: TextView? = null
     private var useInstalledButton: MaterialButton? = null
+    private var getDiscordButton: MaterialButton? = null
 
     private val pickApk = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) copyIntoCache(uri)
@@ -52,6 +53,34 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         app = Nebula.get()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Returning from the store after installing Discord should pick it up by itself.
+        if (selected == null) detectInstalled()
+    }
+
+    /**
+     * Opens the official store listing. Nebula never downloads Discord's APK on its own:
+     * only Discord can distribute Discord, and an APK from a mirror would be unverifiable.
+     */
+    private fun openDiscordInstallPage() {
+        val market = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.discord"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val web = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("https://play.google.com/store/apps/details?id=com.discord"),
+        )
+        try {
+            startActivity(market)
+        } catch (e: Exception) {
+            try {
+                startActivity(web)
+            } catch (also: Exception) {
+                toast("No store app available. Install Discord, then reopen this tab.")
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -74,6 +103,10 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
                 if (busy) return@setOnClickListener
                 detected?.let { found -> prepareInstalled(found) }
             }
+        }
+        getDiscordButton = view.findViewById<MaterialButton>(R.id.btnGetDiscord).also { button ->
+            button.visibility = View.GONE
+            button.setOnClickListener { openDiscordInstallPage() }
         }
         detectInstalled()
 
@@ -157,12 +190,15 @@ class PatchFragment : Fragment(R.layout.fragment_patch) {
                 detected = first
                 if (first == null) {
                     detectedView?.text =
-                        "No installed Discord found on this device (looked for " +
+                        "Discord is not installed on this device (looked for " +
                             DiscordLocator.KNOWN_PACKAGES.joinToString(", ") +
-                            "). Install Discord, or choose an APK file below."
+                            ").\nInstall it from the official store and this tab picks it up " +
+                            "automatically, or choose an APK file below."
                     useInstalledButton?.visibility = View.GONE
+                    getDiscordButton?.visibility = View.VISIBLE
                     view?.findViewById<TextView>(R.id.txtPatchStatus)?.text = "No APK source yet."
                 } else {
+                    getDiscordButton?.visibility = View.GONE
                     detectedView?.text = "Detected ${first.summary()}\n${first.apkPath}"
                     useInstalledButton?.visibility = View.VISIBLE
                     useInstalledButton?.text = "Re-read installed Discord ${first.versionName}"
