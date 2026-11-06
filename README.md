@@ -10,6 +10,14 @@ It is a real, working application: a JavaScript engine (QuickJS), a BetterDiscor
 real HTTP, and a real theme engine. There are no mocked screens and no placeholder
 "it works!" toasts.
 
+## Download
+
+* **[dist/nebula-1.0.0.apk](dist/nebula-1.0.0.apk)** — 8.9 MB, signed release build
+* SHA-256: `2171cc23f364d657b8dcb6fab19d0c17856e3c81543009ff8efe61500e59ff93`
+* Release notes for the `v1.0.0` tag: [dist/RELEASE_NOTES_v1.0.0.md](dist/RELEASE_NOTES_v1.0.0.md)
+
+The same file is what should be attached to the GitHub release for `v1.0.0`.
+
 ## What actually works
 
 | Area | Status |
