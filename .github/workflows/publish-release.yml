@@ -1,0 +1,54 @@
+name: Publish release
+
+# Attaches the signed APK in dist/ to a GitHub Release. The repository's own
+# GITHUB_TOKEN is the only credential a GitHub Release needs, so this runs
+# without any secret having to be created by hand.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-release.yml"
+      - "dist/nebula-*.apk"
+      - "dist/RELEASE_NOTES_*.md"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish APK release
+    runs-on: ubuntu-latest
+    env:
+      TAG: v1.0.0
+      APK: dist/nebula-1.0.0.apk
+      NOTES: dist/RELEASE_NOTES_v1.0.0.md
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify the APK against its committed checksum
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -c nebula-1.0.0.apk.sha256
+
+      - name: Create the release if it does not exist yet
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists - nothing to publish."
+            exit 0
+          fi
+          gh release create "$TAG" "$APK" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Nebula 1.0.0" \
+            --notes-file "$NOTES"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,url,assets --jq '.tagName, .url, (.assets[] | "\(.name) \(.size) bytes")'
